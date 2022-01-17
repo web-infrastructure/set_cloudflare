@@ -1,0 +1,36 @@
+{
+  "clear_build_path" : false,
+  "ebbs_next": [
+	{
+	  "build" : "cloudflare_update",
+	  "build_in" : "build",
+	  "run_when" : [
+		"release"
+	  ],
+	  "config" : {
+		"clear_build_path" : false,
+		"backup" : true,
+		"dmarc" : {
+			"v" : "DMARC1",
+			"p" : "reject",
+			"pct" : "100",
+			"fo" : "1",
+			"adkim" : "s",
+			"aspf" : "s",
+			"rua" : "mailto:support@infrastructure.tech"
+		},
+		"spf" : "v=spf1 include:_spf.google.com ~all",
+		"ebbs_next": [
+            {
+    		  "build" : "publish",
+    		  "build_in" : "bak",
+    		  "config" : {
+    			"clear_build_path" : false,
+    			"visibility" : "private"
+			}
+		  }
+		]
+	  }
+	}
+  ]
+}
