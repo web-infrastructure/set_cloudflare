@@ -1,36 +1,201 @@
 {
-  "clear_build_path" : false,
-  "ebbs_next": [
-	{
-	  "build" : "cloudflare_update",
-	  "build_in" : "build",
-	  "run_when" : [
-		"release"
-	  ],
-	  "config" : {
-		"clear_build_path" : false,
-		"backup" : true,
-		"dmarc" : {
-			"v" : "DMARC1",
-			"p" : "reject",
-			"pct" : "100",
-			"fo" : "1",
-			"adkim" : "s",
-			"aspf" : "s",
-			"rua" : "mailto:support@infrastructure.tech"
-		},
-		"spf" : "v=spf1 include:_spf.google.com ~all",
-		"ebbs_next": [
+    "clear_build_path": false,
+    "next":
+    [
+        {
+            "build": "cloudflare_update",
+            "build_in": "build",
+            "run_when":
+            [
+                "release"
+            ],
+            "config":
             {
-    		  "build" : "publish",
-    		  "build_in" : "bak",
-    		  "config" : {
-    			"clear_build_path" : false,
-    			"visibility" : "private"
-			}
-		  }
-		]
-	  }
-	}
-  ]
+                "clear_build_path": false,
+                "backup": false,
+                "dry_run": false,
+                "domains":
+                [
+                    {
+                        "match":
+                        {
+                            "type": "primary"
+                        },
+                        "wipe":
+                        [
+                            "page_rules"
+                        ],
+                        "dns":
+                        [
+                            {
+                                "type": "TXT",
+                                "domain": "_dmarc.@",
+                                "content": "v=DMARC1; p=reject; pct=100; fo=1; adkim=s; aspf=s; rua=mailto:dmarc_agg@vali.email",
+                                "update_term": "v=DMARC1"
+                            },
+                            {
+                                "type": "TXT",
+                                "domain": "@",
+                                "content": "v=spf1 include:_spf.google.com ~all",
+                                "update_term": "v=spf1"
+                            },
+                            {
+                                "type": "CNAME",
+                                "domain": "www.@",
+                                "content": "@"
+                            }
+                        ],
+                        "page_rules":
+                        [
+                            {
+                                "url": "www.@/*",
+                                "actions":
+                                [
+                                    {
+                                        "id": "forwarding_url",
+                                        "value":
+                                        {
+                                            "url": "https://@/$1",
+                                            "status_code": 301
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "match":
+                        {
+                            "type": "alias"
+                        },
+                        "wipe":
+                        [
+                            "page_rules"
+                        ],
+                        "dns":
+                        [
+                            {
+                                "type": "CNAME",
+                                "domain": "@",
+                                "content": "{domain_config['alias_of']}"
+                            }
+                        ],
+                        "page_rules":
+                        [
+                            {
+                                "url": "@/*",
+                                "actions":
+                                [
+                                    {
+                                        "id": "forwarding_url",
+                                        "value":
+                                        {
+                                            "url": "https://{domain_config['alias_of']}/$1",
+                                            "status_code": 301
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "url": "www.@/*",
+                                "actions":
+                                [
+                                    {
+                                        "id": "forwarding_url",
+                                        "value":
+                                        {
+                                            "url": "https://{domain_config['alias_of']}/$1",
+                                            "status_code": 301
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "match":
+                        {
+                            "security_level": 0
+                        },
+                        "wipe":
+                        [
+                            "firewall_rules"
+                        ],
+                        "firewall_rules":
+                        [
+
+                        ]
+                    },
+                    {
+                        "match":
+                        {
+                            "security_level": 1
+                        },
+                        "wipe":
+                        [
+                            "firewall_rules"
+                        ],
+                        "firewall_rules":
+                        [
+                            {
+                                "name": "Deny Admin",
+                                "priority": 3,
+                                "action": "block",
+                                "expression": "(http.request.uri.path contains '/wp-json') or  (http.request.uri.path contains '/wp-admin') or ( http.request.uri.path contains 'author' and  not http.request.uri.path contains '-author' )"
+                            },
+                            {
+                                "name": "Allow User Login",
+                                "priority": 2,
+                                "action": "allow",
+                                "expression": "( (http.request.uri.path contains '/wp-admin/admin-ajax.php') or (http.request.uri.path contains '/wp-admin/js/') or (http.request.uri.path contains '/wp-admin/css/') )"
+                            },
+                            {
+                                "name": "Allow Admin",
+                                "priority": 1,
+                                "action": "allow",
+                                "expression": "( (http.request.uri.path contains 'wp-json') or (http.request.uri.path contains 'wp-admin') ) and ( cf.threat_score lt 3 ) and ( ( (http.cookie contains 'infrastructure_access=609FdCKnSO8OA9po') or (http.cookie contains 'wdp-pre-sso-state') ) or ( (http.request.uri.path == '/wp-admin/admin-ajax.php') and ( (http.request.uri.query contains 'action=wdpsso_step') or (http.request.uri.query contains 'hubteam=630866') ) ) )"
+                            }
+                        ]
+                    },
+                    {
+                        "match":
+                        {
+                            "security_level": 2
+                        },
+                        "wipe":
+                        [
+                            "firewall_rules"
+                        ],
+                        "firewall_rules":
+                        [
+                            {
+                                "name": "Deny Admin",
+                                "priority": 3,
+                                "action": "block",
+                                "expression": "(http.request.uri.path contains '/wp-json') or  (http.request.uri.path contains '/wp-admin') or ( http.request.uri.path contains 'author' and  not http.request.uri.path contains '-author' )"
+                            },
+                            {
+                                "name": "Allow Admin",
+                                "priority": 1,
+                                "action": "allow",
+                                "expression": "( (http.request.uri.path contains 'wp-json') or (http.request.uri.path contains 'wp-admin') ) and ( cf.threat_score lt 2 ) and ( ( (http.cookie contains 'infrastructure_access=609FdCKnSO8OA9po') or (http.cookie contains 'wdp-pre-sso-state') ) or ( (http.request.uri.path == '/wp-admin/admin-ajax.php') and ( (http.request.uri.query contains 'action=wdpsso_step') or (http.request.uri.query contains 'hubteam=630866') ) ) )"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "next":
+            [
+                {
+                    "build": "publish",
+                    "build_in": "bak",
+                    "config":
+                    {
+                        "clear_build_path": false,
+                        "visibility": "private"
+                    }
+                }
+            ]
+        }
+    ]
 }
